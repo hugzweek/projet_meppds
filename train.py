@@ -74,13 +74,10 @@ mlflow.set_experiment(args.experiment_name)
 
 # LOADING DATA  + PREPROCESSING  -----------------------------------------
 
-fs = s3fs.S3FileSystem(client_kwargs={"endpoint_url": "https://minio.lab.sspcloud.fr"})
-CHEMIN_DATA = "hugoseumen/wildfire-mlops/data/raw_data.csv"
-
-with fs.open(f"s3://{CHEMIN_DATA}") as f:
-    df_raw = pd.read_csv(f)
-
+df_raw = pd.read_csv("https://minio.lab.sspcloud.fr/hugoseumen/wildfire-mlops/data/raw_data.csv")
 logging.info("Chargement des données ✅")
+logging.info(df_raw.head(5))
+sys.exit(0)
 
 df_clean = preprocess(df_raw)
 

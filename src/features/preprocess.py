@@ -28,7 +28,7 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
     # Drop rows with the 5 NAs patern
     five_na_col = data.isna().sum().sort_values(ascending=False).iloc[2:20].index
     data = data.loc[~(data[five_na_col].isna().any(axis=1))]
-    log.info(f"After NA removal: {data.shape}")
+    log.info(f"After NA removal, shape is : {data.shape}")
 
     # Fix vegetation_class typos
     data.loc[data["vegetation_class"] == "$herb$aceous_vegetation", "vegetation_class"] = "herbaceous_vegetation"
@@ -49,7 +49,7 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
     # Drop vegetation detail columns + low-signal/correlated columns
     data = data.drop(columns=VEGETATION_COLS + FOREST_TYPE_COLS + COLS_TO_DROP, errors="ignore")
 
-    log.info(f"After preprocessing: {data.shape}")
+    log.info(f"After preprocessing, shape is {data.shape}")
     return data
 
 

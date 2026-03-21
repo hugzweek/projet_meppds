@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import logging
 from dotenv import load_dotenv
@@ -15,7 +16,7 @@ from xgboost import XGBClassifier
 import skops.io as sio
 import mlflow
 
-import duckdb
+import s3fs
 import pandas as pd
 
 
@@ -73,10 +74,16 @@ mlflow.set_experiment(args.experiment_name)
 
 # LOADING DATA  + PREPROCESSING  -----------------------------------------
 
-csv_path = "data/classification_dataframe/dataset.csv"
-df_raw = load_data(csv_path)
+fs = s3fs.S3FileSystem(client_kwargs={"endpoint_url": "https://minio.lab.sspcloud.fr"})
+CHEMIN_DATA = "hugoseumen/wildfire-mlops/data/raw_data.csv"
+
+with fs.open(f"s3://{CHEMIN_DATA}") as f:
+    df_raw = pd.read_csv(f)
+
+logging.info("Chargement des données ✅")
+
 df_clean = preprocess(df_raw)
-logging.info(type(df_clean))
+
 
 target_col = "ignition"
 n_neg = (df_clean[target_col] == 0).sum()

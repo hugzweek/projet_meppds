@@ -14,7 +14,7 @@ unknown_types = sio.get_untrusted_types(file="model.skops")
 model = sio.load("model.skops", trusted=unknown_types)
 
 app = FastAPI(
-    title="Wildfire Ignition Prediction API",
+    title="Wildfire Ignition Point Prediction API",
     description="<b>Application de prédiction de point d'ignition de feux de forêt</b> 🔥"
     + '<br><br><img src="https://minio.lab.sspcloud.fr/wildfire-mlops/static/wildfire.png" width="300">',
 )

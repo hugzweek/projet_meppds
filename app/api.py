@@ -3,6 +3,12 @@
 from fastapi import FastAPI
 import skops.io as sio
 import pandas as pd
+import urllib.request
+
+urllib.request.urlretrieve(
+    "https://minio.lab.sspcloud.fr/hugoseumen/wildfire-mlops/models/model.skops",
+    "model.skops"
+)
 
 unknown_types = sio.get_untrusted_types(file="model.skops")
 model = sio.load("model.skops", trusted=unknown_types)

@@ -2,12 +2,10 @@
 
 from fastapi import FastAPI
 import skops.io as sio
-import joblib
 import pandas as pd
 
 unknown_types = sio.get_untrusted_types(file="model.skops")
 model = sio.load("model.skops", trusted=unknown_types)
-preprocessor = joblib.load("preprocessor.pkl")
 
 app = FastAPI(
     title="Wildfire Ignition Prediction API",
@@ -80,8 +78,7 @@ async def predict(
         "vegetation_class": [vegetation_class],
     })
 
-    X = preprocessor.transform(df)
-    proba = model.predict_proba(X)[0][1]
+    proba = model.predict_proba(df)[0][1]
     prediction = int(proba >= 0.5)
 
     return "🔥 Ignition probable" if prediction == 1 else "✅ Pas d'ignition"

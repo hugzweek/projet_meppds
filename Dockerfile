@@ -10,10 +10,9 @@ COPY pyproject.toml uv.lock .
 RUN uv sync --frozen --no-dev
 
 COPY app ./app
-RUN chmod +x app/run.sh
 COPY train.py .
 COPY src ./src
 
 EXPOSE 8000
 
-CMD ["bash", "-c", "./app/run.sh"]
+CMD ["uv", "run", "uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8000"]

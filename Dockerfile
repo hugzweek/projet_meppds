@@ -10,6 +10,7 @@ COPY pyproject.toml uv.lock .
 RUN uv sync --frozen --no-dev
 
 COPY app ./app
+RUN chmod +x app/run.sh
 COPY train.py .
 COPY src ./src
 

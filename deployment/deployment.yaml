@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wildfire-deployment
+  labels:
+    app: wildfire
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wildfire
+  template:
+    metadata:
+      labels:
+        app: wildfire
+    spec:
+      containers:
+      - name: wildfire
+        image: hugzweek/wildfire-api:latest
+        ports:
+        - containerPort: 8000

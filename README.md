@@ -1,5 +1,12 @@
 # 🔥 Wildfire Ignition Point Prediction — MLOps Project
+![Wildfire](https://minio.lab.sspcloud.fr/hugoseumen/wildfire-mlops/static/wildfire.png)
 
+![Python](https://img.shields.io/badge/Python-3.13-blue?logo=python)
+![XGBoost](https://img.shields.io/badge/Model-XGBoost-orange?logo=xgboost)
+![FastAPI](https://img.shields.io/badge/API-FastAPI-green?logo=fastapi)
+![Docker](https://img.shields.io/badge/Docker-ready-blue?logo=docker)
+![ArgoCD](https://img.shields.io/badge/GitOps-ArgoCD-red?logo=argo)
+![MLflow](https://img.shields.io/badge/Tracking-MLflow-blue?logo=mlflow)
 > Prédiction de points d'ignition de feux de forêt via un pipeline MLOps complet : de la donnée brute au déploiement en production.
 
 **🌐 API en production** → [https://wildfire-api.user.lab.sspcloud.fr/docs](https://wildfire-api.user.lab.sspcloud.fr/docs)

@@ -102,23 +102,22 @@ with mlflow.start_run():
     )
 
     xgb = XGBClassifier(
-        objective="binary:logistic", eval_metric="aucpr", scale_pos_weight=pos_weight, 
-        random_state=42
+        objective="binary:logistic",
+        eval_metric="aucpr",
+        scale_pos_weight=pos_weight,
+        random_state=42,
     )
 
-    pipeline = Pipeline([
-        ("preprocessor", preprocessor),
-        ("classifier", xgb)
-    ])
+    pipeline = Pipeline([("preprocessor", preprocessor), ("classifier", xgb)])
 
     param_dist = {
-    "classifier__n_estimators": [300, 500, 700],
-    "classifier__learning_rate": [0.01, 0.05, 0.1],
-    "classifier__max_depth": [3, 4, 5, 6, 7],
-    "classifier__subsample": [0.6, 0.8, 1.0],
-    "classifier__colsample_bytree": [0.6, 0.8, 1.0],
-    "classifier__min_child_weight": [1, 3, 5, 7],
-    "classifier__gamma": [0, 1, 3]
+        "classifier__n_estimators": [300, 500, 700],
+        "classifier__learning_rate": [0.01, 0.05, 0.1],
+        "classifier__max_depth": [3, 4, 5, 6, 7],
+        "classifier__subsample": [0.6, 0.8, 1.0],
+        "classifier__colsample_bytree": [0.6, 0.8, 1.0],
+        "classifier__min_child_weight": [1, 3, 5, 7],
+        "classifier__gamma": [0, 1, 3],
     }
 
     scorer = make_scorer(average_precision_score, response_method="predict_proba")

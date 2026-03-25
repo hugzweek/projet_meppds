@@ -1,4 +1,9 @@
-from sklearn.metrics import f1_score, recall_score, precision_score, average_precision_score
+from sklearn.metrics import (
+    f1_score,
+    recall_score,
+    precision_score,
+    average_precision_score,
+)
 
 
 def evaluate(model, X_test, y_test) -> dict:

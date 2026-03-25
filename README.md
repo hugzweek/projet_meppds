@@ -134,7 +134,7 @@ docker build -t wildfire-api .
 docker run -p 8000:8000 wildfire-api
 ```
 
-L'image est automatiquement buildée et publiée sur Docker Hub via GitHub Actions à chaque push sur `main`.
+L'image est automatiquement buildée et publiée sur Docker Hub.
 
 ---
 

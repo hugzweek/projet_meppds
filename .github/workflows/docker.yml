@@ -41,4 +41,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/wildfire-api:${{ github.sha }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/wildfire-api:latest

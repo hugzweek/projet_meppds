@@ -33,7 +33,6 @@ logging.basicConfig(
 )
 
 # 2. CONFIGURATION DES ARGUMENTS ---------------------------------------
-# 2. CONFIGURATION DES ARGUMENTS ---------------------------------------
 parser = argparse.ArgumentParser(description="Paramètres du XGBoost + MLflow")
 
 # Configuration de l'environnement

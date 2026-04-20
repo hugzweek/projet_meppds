@@ -113,33 +113,61 @@ cd projet_meppds
 uv sync
 ```
 
-### 🔑 Configuration (MLflow & Secrets)
+## 📊 Suivi des expériences (MLflow)
 
-Avant de lancer l'entraînement, vous devez configurer vos accès au serveur MLflow. Ce projet utilise un fichier `.env` pour charger les secrets de manière sécurisée.
+Ce projet utilise **MLflow** pour centraliser le suivi des entraînements, comparer les performances des modèles et stocker les artefacts (modèles et préprocesseurs).
 
-1. **Créer votre fichier local** :
+### 🔑 Configuration & Secrets
+
+Avant de lancer l'entraînement, vous devez configurer vos accès au serveur MLflow. Le projet utilise un fichier `.env` pour charger les secrets de manière sécurisée.
+
+1. **Initialiser votre environnement** :
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Configurer les variables** :
+Ouvrez le fichier .env et complétez les informations suivantes :
+- MLFLOW_TRACKING_URI : L'URL du serveur MLflow (par défaut, celle du service partagé).
+- MLFLOW_TRACKING_USERNAME : Votre identifiant (ou celui du service partagé).
+- MLFLOW_TRACKING_PASSWORD : Votre jeton d'accès (ou celui du service partagé).
+
+[!IMPORTANT]
+Le fichier `.env.example` est pré-rempli avec les identifiants du **service partagé** du projet. Normalement, aucune modification n'est nécessaire pour contribuer au serveur commun. Le fichier `.env` final est ignoré par Git pour protéger vos accès.
+
+### 🏋️ Entraînement
+Pour lancer le pipeline d'entraînement et enregistrer les résultats :
+
     ```bash
-    cp .env.example .env
+    uv run --env-file .env python train.py
     ```
 
-2. **Remplir les variables**:
-Ouvrez le fichier .env et complétez-le avec vos identifiants récupérés sur le Datalab Onyxia (onglet "Mon Compte" > "Identifiants") :
-
-- MLFLOW_TRACKING_URI : L'URL de votre service MLflow (ex: https://user-pseudo-mlflow...)
-- MLFLOW_TRACKING_USERNAME : Votre identifiant utilisateur.
-- MLFLOW_TRACKING_PASSWORD : Votre jeton (token) d'accès.
-
-### Entraînement
-
-```bash
-uv run train.py
-```
-
 Options disponibles :
+Le script supporte plusieurs arguments pour personnaliser l'exécution :
+
+Mode de tracking (--mode) :
+
+- shared (par défaut) : Enregistre sur l'instance MLflow commune de l'équipe.
+- personal : Enregistre sur votre propre instance MLflow Onyxia (nécessite de mettre à jour l'URL dans votre .env).
+
+Paramètres du modèle :
+
+--experiment_name : Nom de l'expérience dans l'interface MLflow (par défaut : wildfire_ML).
+
+--n_estimators : Nombre d'arbres pour le modèle XGBoost (par défaut : 300).
+
+--cv : Nombre de folds pour la cross-validation (par défaut : 5).
+
+Exemple de commande personnalisée :
 
 ```bash
-uv run train.py --experiment_name wildfire_ML --n_estimators 300 --cv 5
+uv run --env-file .env python train.py --mode personal --n_estimators 500 --cv 3
 ```
+
+📈 Visualisation
+Une fois l'entraînement terminé, vous pouvez consulter les scores (PR-AUC), comparer les versions et récupérer les modèles enregistrés (Model Registry) sur l'interface web :
+
+👉 [Accéder au Serveur MLflow du projet](https://user-gb53-mlflow.user.lab.sspcloud.fr)
 
 ### Lancer l'API en local
 

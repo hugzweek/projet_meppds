@@ -100,6 +100,10 @@ Chaque observation correspond à un point géographique avec les features suivan
 
 - [uv](https://docs.astral.sh/uv/) installé
 - Python 3.13+
+- **macOS (Silicon M1/M2/M3) :** L'entraînement XGBoost nécessite la bibliothèque OpenMP.
+  ```bash
+  brew install libomp
+  ```
 
 ### Installation
 
@@ -108,6 +112,22 @@ git clone https://github.com/hugzweek/projet_meppds.git
 cd projet_meppds
 uv sync
 ```
+
+### 🔑 Configuration (MLflow & Secrets)
+
+Avant de lancer l'entraînement, vous devez configurer vos accès au serveur MLflow. Ce projet utilise un fichier `.env` pour charger les secrets de manière sécurisée.
+
+1. **Créer votre fichier local** :
+    ```bash
+    cp .env.example .env
+    ```
+
+2. **Remplir les variables**:
+Ouvrez le fichier .env et complétez-le avec vos identifiants récupérés sur le Datalab Onyxia (onglet "Mon Compte" > "Identifiants") :
+
+- MLFLOW_TRACKING_URI : L'URL de votre service MLflow (ex: https://user-pseudo-mlflow...)
+- MLFLOW_TRACKING_USERNAME : Votre identifiant utilisateur.
+- MLFLOW_TRACKING_PASSWORD : Votre jeton (token) d'accès.
 
 ### Entraînement
 

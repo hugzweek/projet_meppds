@@ -3,6 +3,7 @@
 import os
 import argparse
 import logging
+import requests
 
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.pipeline import Pipeline
@@ -12,13 +13,16 @@ from xgboost import XGBClassifier
 import joblib
 import skops.io as sio
 import mlflow
+from mlflow.models import infer_signature
+from dotenv import load_dotenv
 
 import pandas as pd
-
 
 from src.features.preprocess import preprocess, build_features
 from src.models.evaluate import evaluate
 
+# 1. CHARGEMENT DES VARIABLES D'ENVIRONNEMENT ---------------------------
+load_dotenv()
 
 logging.basicConfig(
     format="{asctime} - {levelname} - {message}",
@@ -28,78 +32,116 @@ logging.basicConfig(
     handlers=[logging.FileHandler("recording.log"), logging.StreamHandler()],
 )
 
+# 2. CONFIGURATION DES ARGUMENTS ---------------------------------------
+parser = argparse.ArgumentParser(description="Paramètres du XGBoost + MLflow")
 
-# ENVIRONMENT CONFIGURATION ---------------------------
-
-parser = argparse.ArgumentParser(description="Paramètres du XGBoost + grid search")
+# Configuration de l'environnement
 parser.add_argument(
-    "--experiment_name", type=str, default="wildfire_ML", help="MLFlow experiment name"
+    "--mode",
+    type=str,
+    choices=["shared", "personal"],
+    default="shared",
+    help="Choisir entre le service partagé (par défaut) ou votre service personnel"
 )
+parser.add_argument(
+    "--experiment_name",
+    type=str,
+    default="wildfire_ML",
+    help="Nom de l'expérience MLflow"
+)
+
+# Hyperparamètres XGBoost
 parser.add_argument(
     "--n_estimators",
     type=int,
     default=300,
-    help="Valeur par défaut pour n_estimators dans la grille",
+    help="Nombre d'arbres pour XGBoost"
 )
 parser.add_argument(
-    "--cv", type=int, default=5, help="Nombre de folds pour la cross-validation"
+    "--learning_rate",
+    type=float,
+    default=0.05,
+    help="Pas d'apprentissage (vitesse de convergence)"
 )
+parser.add_argument(
+    "--max_depth",
+    type=int,
+    default=5,
+    help="Profondeur maximale des arbres"
+)
+parser.add_argument(
+    "--subsample",
+    type=float,
+    default=0.8,
+    help="Fraction des données d'entraînement utilisée par arbre"
+)
+parser.add_argument(
+    "--colsample_bytree",
+    type=float,
+    default=0.8,
+    help="Fraction des colonnes (features) utilisée par arbre"
+)
+
+# Configuration de la validation
+parser.add_argument(
+    "--cv",
+    type=int,
+    default=5,
+    help="Nombre de folds pour la cross-validation"
+)
+parser.add_argument(
+    "--n_iter",
+    type=int,
+    default=10,
+    help="Nombre d'itérations pour la recherche aléatoire (Random Search)"
+)
+
 args = parser.parse_args()
 
-n_estimators_default = args.n_estimators
-cv_folds = args.cv
+# 3. LOGIQUE DE CONNEXION MLFLOW ---------------------------------------
+SHARED_URI = "https://user-gb53-mlflow.user.lab.sspcloud.fr"
 
-logging.info(f"Valeur de l'argument n_trees: {n_estimators_default}")
-logging.info(f"Valeur de l'argument cv: {cv_folds}")
+if args.mode == "personal":
+    mlflow_server = os.getenv("MLFLOW_TRACKING_URI")
+    if not mlflow_server:
+        logging.error("Mode personnel choisi mais MLFLOW_TRACKING_URI est absente du .env")
+        exit(1)
+    logging.info("Utilisation de votre instance MLflow personnelle.")
+else:
+    mlflow_server = os.getenv("MLFLOW_TRACKING_URI", SHARED_URI)
+    logging.info(f"Utilisation de l'instance partagée : {mlflow_server}")
 
-# LOGGING IN MLFLOW -----------------
+mlflow_server = mlflow_server.split("/#")[0].rstrip("/")
 
-mlflow_server = os.getenv(
-    "https://user-hugoseumen-mlflow.user.lab.sspcloud.fr/#/experiments"
-)
+try:
+    requests.get(mlflow_server, timeout=5)
+    mlflow.set_tracking_uri(mlflow_server)
+    mlflow.set_experiment(args.experiment_name)
+    logging.info("Connexion au serveur MLflow établie.")
+except Exception as e:
+    logging.error(f"Serveur MLflow injoignable : {e}")
+    exit(1)
 
-logging.debug(f"Saving experiment in {mlflow_server}")
+mlflow.sklearn.autolog(log_datasets=False, silent=True)
 
-mlflow.set_tracking_uri(mlflow_server)
-mlflow.set_experiment(args.experiment_name)
-
-
-# LOADING DATA  + PREPROCESSING  -----------------------------------------
-
-df_raw = pd.read_csv(
-    "https://minio.lab.sspcloud.fr/hugoseumen/wildfire-mlops/data/raw_data.csv"
-)
-logging.info("Chargement des données ✅")
+# 4. CHARGEMENT ET PRÉPARATION DES DONNÉES -----------------------------
+logging.info("Chargement des données depuis MinIO...")
+df_raw = pd.read_csv("https://minio.lab.sspcloud.fr/hugoseumen/wildfire-mlops/data/raw_data.csv")
 
 df_clean = preprocess(df_raw)
 
-
 target_col = "ignition"
-n_neg = (df_clean[target_col] == 0).sum()
-n_pos = (df_clean[target_col] == 1).sum()
-pos_weight = n_neg / n_pos
-logging.info(f"pos_weight: {pos_weight:.2f}")
+pos_weight = (df_clean[target_col] == 0).sum() / (df_clean[target_col] == 1).sum()
 
 X_train, X_test, y_train, y_test, preprocessor = build_features(
     df_clean, target_col=target_col, encoding="onehot"
 )
 
-#  RANDOMIZED SEARCH CV  -----------------------------------------
+# 5. ENTRAÎNEMENT ET TRACKING -----------------------------------------
+run_name = f"xgb_{args.mode}_cv{args.cv}"
 
-train_data = pd.concat([X_train, y_train], axis=1)
-
-with mlflow.start_run():
-    logging.debug(f"\n{80 * '-'}\nLogging input in MLFlow\n{80 * '-'}")
-
-    mlflow.log_input(
-        mlflow.data.from_pandas(df_raw),
-        context="raw",
-    )
-
-    mlflow.log_input(
-        mlflow.data.from_pandas(train_data),
-        context="raw",
-    )
+with mlflow.start_run(run_name=run_name):
+    mlflow.log_input(mlflow.data.from_pandas(df_raw), context="raw")
 
     xgb = XGBClassifier(
         objective="binary:logistic",
@@ -111,13 +153,11 @@ with mlflow.start_run():
     pipeline = Pipeline([("preprocessor", preprocessor), ("classifier", xgb)])
 
     param_dist = {
-        "classifier__n_estimators": [300, 500, 700],
-        "classifier__learning_rate": [0.01, 0.05, 0.1],
-        "classifier__max_depth": [3, 4, 5, 6, 7],
-        "classifier__subsample": [0.6, 0.8, 1.0],
-        "classifier__colsample_bytree": [0.6, 0.8, 1.0],
-        "classifier__min_child_weight": [1, 3, 5, 7],
-        "classifier__gamma": [0, 1, 3],
+        "classifier__n_estimators": [args.n_estimators, args.n_estimators + 200],
+        "classifier__learning_rate": [args.learning_rate, args.learning_rate / 2],
+        "classifier__max_depth": [args.max_depth, args.max_depth + 2],
+        "classifier__subsample": [args.subsample, 1.0],
+        "classifier__colsample_bytree": [args.colsample_bytree, 1.0],
     }
 
     scorer = make_scorer(average_precision_score, response_method="predict_proba")
@@ -126,42 +166,55 @@ with mlflow.start_run():
         estimator=pipeline,
         param_distributions=param_dist,
         scoring=scorer,
-        cv=5,
-        verbose=0,
+        cv=args.cv,
         refit=True,
+        n_iter=10
     )
 
-    # TRAINING AND EVALUATION --------------------------------------------
-
-    logging.debug(f"\n{80 * '-'}\nStarting randomized search fitting phase\n{80 * '-'}")
-
+    logging.info("Running Randomized Search...")
     search.fit(X_train, y_train)
-
-    logging.info(f"Best CV score: {search.best_score_:.3f}")
-    logging.info(f"Best params: {search.best_params_}")
 
     best_model = search.best_estimator_
 
-    best_params = search.best_params_
+    # 6. SIGNATURE ET EVALUATION ---------------------------------------
+    signature = infer_signature(X_test, best_model.predict(X_test))
 
-    for param, value in best_params.items():
-        mlflow.log_param(param, value)
-
-    # Sauvegarde du meilleur pipeline complet
-    sio.dump(best_model, "model.skops")
-    joblib.dump(preprocessor, "preprocessor.pkl")
-
-    # Évaluation propre avec les bonnes métriques
     test_metrics = evaluate(best_model, X_test, y_test)
-    train_metrics = evaluate(best_model, X_train, y_train)
+    for metric, value in test_metrics.items():
+        mlflow.log_metric(f"test_{metric}", value)
 
-    logging.info(f"Test PR-AUC: {test_metrics['pr_auc']}")
-    logging.info(f"Train PR-AUC: {train_metrics['pr_auc']}")  # Il y a du overfit
+        # 7. SAUVEGARDE LOCALE ET REGISTRE ---------------------------------
+        backup_dir = "models_backup"
+        os.makedirs(backup_dir, exist_ok=True)
 
-    # Log metrics
-    mlflow.log_metric("PR-AUC", test_metrics["pr_auc"])
+        # Définition des chemins
+        model_path = os.path.join(backup_dir, "model.skops")
+        preprocessor_path = os.path.join(backup_dir, "preprocessor.pkl")
+        cv_results_path = os.path.join(backup_dir, "cv_results.csv")
 
-    logging.debug(f"\n{80 * '-'}\nFILE ENDED SUCCESSFULLY!\n{80 * '-'}")
+        # Sauvegarde Locale en Baclup
+        sio.dump(best_model, model_path)
+        joblib.dump(preprocessor, preprocessor_path)
 
-    # Log model
-    mlflow.sklearn.log_model(xgb, "model")
+        # Sauvegarde du tableau complet des résultats de recherche
+        cv_results_df = pd.DataFrame(search.cv_results_)
+        cv_results_df.to_csv(cv_results_path, index=False)
+
+        # Envoi des fichiers locaux vers MLflow (Artifacts)
+        mlflow.log_artifact(model_path)
+        mlflow.log_artifact(preprocessor_path)
+        mlflow.log_artifact(cv_results_path)
+
+        # Enregistrement officiel dans le Model Registry
+        mlflow.sklearn.log_model(
+            sk_model=best_model,
+            artifact_path="model",
+            signature=signature,
+            registered_model_name="WildfireXGBClassifier"
+        )
+
+        logging.info(f"Meilleur score CV : {search.best_score_:.3f}")
+        logging.info(f"Tableau cv_results enregistré localement : {cv_results_path}")
+        logging.info(f"Backup complet effectué dans le dossier : {backup_dir}/")
+        logging.info(f"Modèle enregistré dans le registre : WildfireXGBClassifier")
+        logging.debug("Script terminé avec succès.")
